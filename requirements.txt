@@ -1,0 +1,8 @@
+pydantic-settings
+pydantic
+SQLAlchemy
+tenacity
+requests
+pandas
+numpy
+scikit-learn
