@@ -6,3 +6,6 @@ requests
 pandas
 numpy
 scikit-learn
+beautifulsoup4
+lxml
+pypdf
