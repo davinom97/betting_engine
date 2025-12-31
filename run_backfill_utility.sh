@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Backfill utility script
-# Usage: ./run_backfill_utility.sh [mode]
+
+# run_backfill_utility.sh
+# Backfill historical data for various sports. Usage: ./run_backfill_utility.sh [mode]
 # Modes: tierA | tierB | tierC | all | sport:<sport_key>
+
+set -euo pipefail
 
 cd "$(dirname "$0")"
 
@@ -9,23 +12,25 @@ mkdir -p logs data
 
 # Activate virtualenv (cross-platform)
 if [ -f "venv/bin/activate" ]; then
+	# shellcheck source=/dev/null
 	source "venv/bin/activate"
-elif [ -f "venv/Scripts/activate" ]; then
-	source "venv/Scripts/activate"
 elif [ -f ".venv/bin/activate" ]; then
+	# shellcheck source=/dev/null
 	source ".venv/bin/activate"
-elif [ -f ".venv/Scripts/activate" ]; then
-	source ".venv/Scripts/activate"
+elif [ -f "venv/Scripts/activate" ]; then
+	# Git Bash on Windows
+	# shellcheck source=/dev/null
+	source "venv/Scripts/activate"
 fi
 
-export PYTHONPATH="$PYTHONPATH:."
+export PYTHONPATH="${PYTHONPATH:-}:$PWD"
 
 LOGFILE=logs/backfill.log
 echo "[$(date)] ▶ Starting History Backfill..." | tee -a "$LOGFILE"
 echo "    (This may take a while; API rate limits apply)" | tee -a "$LOGFILE"
 
-# Ensure required packages are installed
-if ! python -c "import click,requests" &>/dev/null; then
+# Ensure required packages are installed (best-effort)
+if ! python -c "import click,requests" >/dev/null 2>&1; then
 	echo "Installing runtime requirements into venv..." | tee -a "$LOGFILE"
 	python -m pip install -r requirements.txt >>"$LOGFILE" 2>&1 || true
 fi
@@ -35,13 +40,13 @@ MODE=${1:-tierA}
 run_cmd() {
 	echo "[$(date)] ▶ $*" | tee -a "$LOGFILE"
 	# Run the python backfill command
-	python -m src.backfill $* 2>&1 | tee -a "$LOGFILE"
-	local rc=${PIPESTATUS[0]:-${?}}
-	if [ $rc -ne 0 ]; then
+	if python -m src.backfill "$@" 2>&1 | tee -a "$LOGFILE"; then
+		return 0
+	else
+		local rc=${PIPESTATUS[0]:-${?}}
 		echo "[$(date)] ❌ Command failed: python -m src.backfill $* (rc=$rc)" | tee -a "$LOGFILE"
 		return $rc
 	fi
-	return 0
 }
 
 case "$MODE" in
@@ -72,7 +77,7 @@ case "$MODE" in
 		;;
 	sport:*)
 		SPORT=${MODE#sport:}
-		run_cmd --sport $SPORT --days 30 --interval 24 || exit 1
+		run_cmd --sport "$SPORT" --days 30 --interval 24 || exit 1
 		;;
 	*)
 		echo "Unknown mode: $MODE" | tee -a "$LOGFILE"

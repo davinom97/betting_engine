@@ -1,0 +1,27 @@
+{
+  "files": {
+    "setup_env.sh": "https://raw.githubusercontent.com/davinom97/betting_engine/main/setup_env.sh",
+    "run_ingest.sh": "https://raw.githubusercontent.com/davinom97/betting_engine/main/run_ingest.sh",
+    "run_feature_archiver.sh": "https://raw.githubusercontent.com/davinom97/betting_engine/main/run_feature_archiver.sh",
+    "run_decision.sh": "https://raw.githubusercontent.com/davinom97/betting_engine/main/run_decision.sh",
+    "run_backfill_utility.sh": "https://raw.githubusercontent.com/davinom97/betting_engine/main/run_backfill_utility.sh",
+    "requirements.txt": "https://raw.githubusercontent.com/davinom97/betting_engine/main/requirements.txt",
+    "manage.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/manage.py",
+    "main.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/main.py",
+    "context.txt": "https://raw.githubusercontent.com/davinom97/betting_engine/main/context.txt",
+    ".gitignore": "https://raw.githubusercontent.com/davinom97/betting_engine/main/.gitignore",
+    "scripts/count_snapshots.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/scripts/count_snapshots.py",
+    "src/__init__.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/__init__.py",
+    "src/backfill.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/backfill.py",
+    "src/config.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/config.py",
+    "src/database.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/database.py",
+    "src/features.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/features.py",
+    "src/ingest.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/ingest.py",
+    "src/injuries.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/injuries.py",
+    "src/ml_engine.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/ml_engine.py",
+    "src/plugins.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/plugins.py",
+    "src/schemas.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/schemas.py",
+    "src/settlement.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/settlement.py",
+    "src/strategy.py": "https://raw.githubusercontent.com/davinom97/betting_engine/main/src/strategy.py"
+  }
+}

@@ -1,33 +1,36 @@
 #!/usr/bin/env bash
 
-# Move to repo root (script dir)
+# run_ingest.sh
+# Run the ingestion (manage.py scrape) and log output
+
+set -euo pipefail
+
 cd "$(dirname "$0")"
 
-# Create logs dir if missing
 mkdir -p logs
 
-# Activate virtualenv (support venv or .venv, Windows or Unix)
+# Activate virtualenv
 if [ -f "venv/bin/activate" ]; then
-  source "venv/bin/activate"
-elif [ -f "venv/Scripts/activate" ]; then
-  source "venv/Scripts/activate"
+    # shellcheck source=/dev/null
+    source "venv/bin/activate"
 elif [ -f ".venv/bin/activate" ]; then
-  source ".venv/bin/activate"
-elif [ -f ".venv/Scripts/activate" ]; then
-  source ".venv/Scripts/activate"
+    # shellcheck source=/dev/null
+    source ".venv/bin/activate"
+elif [ -f "venv/Scripts/activate" ]; then
+    # Git Bash on Windows
+    # shellcheck source=/dev/null
+    source "venv/Scripts/activate"
 fi
 
-export PYTHONPATH="$PYTHONPATH:."
+export PYTHONPATH="${PYTHONPATH:-}:$PWD"
 
 LOGFILE=logs/ingest.log
 echo "[$(date)] 🚀 Starting Ingest..." | tee -a "$LOGFILE"
 
 # Run the Scraper via manage.py (click command: scrape)
-python manage.py scrape 2>&1 | tee -a "$LOGFILE"
-
-EXIT_CODE=${PIPESTATUS[0]:-$?}
-if [ "$EXIT_CODE" -eq 0 ]; then
-  echo "[$(date)] ✅ Ingest Success" | tee -a "$LOGFILE"
+if python manage.py scrape 2>&1 | tee -a "$LOGFILE"; then
+    echo "[$(date)] ✅ Ingest Success" | tee -a "$LOGFILE"
 else
-  echo "[$(date)] ❌ Ingest FAILED (exit=$EXIT_CODE)" | tee -a "$LOGFILE"
+    echo "[$(date)] ❌ Ingest FAILED" | tee -a "$LOGFILE"
+    exit 1
 fi

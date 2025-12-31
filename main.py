@@ -125,29 +125,33 @@ def run_daily_cycle():
         scored_df = pd.DataFrame(scored_candidates)
 
         strategy = DecisionEngine(bankroll=settings.BANKROLL)
-        best_bet = strategy.select_best_bet(scored_df)
+        positive_bets_df = strategy.select_positive_ev_bets(scored_df)
 
-        if best_bet is not None:
+        if not positive_bets_df.empty:
             print("\n" + "="*40)
-            print(f"🏆 BET OF THE DAY: {best_bet['selection']}")
-            print(f"Event ID: {best_bet['event_id']}")
-            print(f"Odds:     {best_bet['odds']:.2f}")
-            print(f"Edge:     {best_bet['ev']:.2%}")
-            print(f"Stake:    ${best_bet['stake']:.2f}")
-            print("="*40 + "\n")
+            print("🏆 POSITIVE EV BETS:")
+            for _, bet in positive_bets_df.iterrows():
+                print("-"*40)
+                print(f"Selection: {bet['selection']}")
+                print(f"Event ID:  {bet['event_id']}")
+                print(f"Odds:      {bet['odds']:.2f}")
+                print(f"Edge:      {bet['ev']:.2%}")
+                print(f"Stake:     ${bet['stake']:.2f}")
 
-            log_entry = BetLog(
-                event_id=best_bet['event_id'],
-                selection=best_bet['selection'],
-                price_taken=best_bet['odds'],
-                stake=best_bet['stake'],
-                model_prob=best_bet['model_prob'],
-                ev_per_dollar=best_bet['ev'],
-                result=None
-            )
-            session.add(log_entry)
+                log_entry = BetLog(
+                    event_id=bet['event_id'],
+                    selection=bet['selection'],
+                    price_taken=bet['odds'],
+                    stake=bet['stake'],
+                    model_prob=bet['model_prob'],
+                    ev_per_dollar=bet['ev'],
+                    result=None
+                )
+                session.add(log_entry)
+
             session.commit()
-            logger.info("Bet logged successfully.")
+            print("="*40 + "\n")
+            logger.info(f"{len(positive_bets_df)} bets logged successfully.")
         else:
             print("\n🚫 No bets found meeting Edge/Kelly criteria today.")
 
