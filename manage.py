@@ -66,18 +66,40 @@ def compute_features(hours):
             'event_id': snap.event_id,
             'selection': 'Home', # Simplified; in prod use team name
             'bookmaker': snap.bookmaker,
-            'price': snap.home_price,
-            'timestamp': snap.timestamp
-        })
-        data.append({
+            'price': snap.odds_decimal, # Unified Schema uses odds_decimal
+            'timestamp': snap.timestamp,
+            'market_key': snap.market_key, # Critical for feature engine
+            'handicap': snap.handicap,
             'event_id': snap.event_id,
-            'selection': 'Away',
+            'sport_key': evt.sport_key # Pass sport key for classification
+        })
+        # Note: Unified schema stores one row per outcome, so we don't need to manually 
+        # split Home/Away here if we iterate directly.
+        # However, the loop above iterates Snapshot objects which ARE one per outcome.
+        # So we just need to map the attributes correctly.
+    
+    # RE-MAPPING for Unified Schema (Corrected Logic)
+    # The previous logic assumed the old 'home_price/away_price' schema. 
+    # With unified schema, we just dump the rows directly.
+    
+    unified_data = []
+    for snap, evt in query:
+        unified_data.append({
+            'event_id': snap.event_id,
+            'sport_key': evt.sport_key,
+            'selection': snap.selection,
             'bookmaker': snap.bookmaker,
-            'price': snap.away_price,
+            'market_key': snap.market_key,
+            'handicap': snap.handicap,
+            'odds_decimal': snap.odds_decimal,
             'timestamp': snap.timestamp
         })
-    
-    df = pd.DataFrame(data)
+        
+    df = pd.DataFrame(unified_data)
+    if df.empty:
+        click.echo("DataFrame empty. No data to process.")
+        return
+
     df = df.sort_values('timestamp')
     
     # 2. Run the Feature Engine
@@ -85,6 +107,7 @@ def compute_features(hours):
     # Using the function we wrote in features.py
     from src.features import generate_features_for_backtest
     
+    # The feature engine expects specific column names, ensure they match schemas.py/UnifiedBet
     feature_df = generate_features_for_backtest(df)
     
     if feature_df.empty:
@@ -99,7 +122,7 @@ def compute_features(hours):
         # Check uniqueness to avoid duplicates (naive check)
         exists = session.query(MarketFeatures).filter_by(
             event_id=row['event_id'],
-            timestamp=row['asof_ts'],
+            timestamp=row['timestamp'], # engine output uses 'timestamp'
             selection=row['selection'],
             book=row['book']
         ).first()
@@ -107,15 +130,14 @@ def compute_features(hours):
         if not exists:
             feat = MarketFeatures(
                 event_id=row['event_id'],
-                timestamp=row['asof_ts'],
+                timestamp=row['timestamp'],
                 selection=row['selection'],
+                market_family=row['market_family'],
                 book=row['book'],
-                p_implied=row['p_implied_raw'],
-                p_consensus=row['p_consensus'],
-                p_bayesian=row['p_model_bayesian'],
-                velocity_logit=row['velocity_logit'],
-                is_jumpy=row['is_jumpy'],
-                edge_z_score=row['edge_z_score']
+                p_implied=row['p_implied'],
+                p_fair_consensus=row['p_fair_consensus'],
+                velocity=row['velocity'],
+                context_uncertainty=row['context_uncertainty']
             )
             session.add(feat)
             new_features += 1
@@ -132,30 +154,22 @@ def view_data():
     click.echo("\n--- Latest 5 Snapshots ---")
     snaps = session.query(OddsSnapshot).order_by(OddsSnapshot.timestamp.desc()).limit(5).all()
     for s in snaps:
-        print(f"[{s.timestamp}] {s.bookmaker} | {s.market_key} | H:{s.home_price} A:{s.away_price}")
+        print(f"[{s.timestamp}] {s.bookmaker} | {s.market_key} | {s.selection} @ {s.odds_decimal}")
         
     click.echo("\n--- Latest 5 Features ---")
     feats = session.query(MarketFeatures).order_by(MarketFeatures.timestamp.desc()).limit(5).all()
     for f in feats:
-        print(f"[{f.timestamp}] {f.selection} | P_Bayes: {f.p_bayesian:.3f} | Velo: {f.velocity_logit:.3f}")
+        print(f"[{f.timestamp}] {f.selection} | P_Fair: {f.p_fair_consensus:.3f} | Velo: {f.velocity:.3f}")
     
     session.close()
 
-# Add this to manage.py or a temp script
 @cli.command()
 def backfill_results():
     """Fetches past scores for settlement."""
     session = get_session()
-    ingestor = IngestionEngine(session)
-    # The API allows 'daysFrom' parameter up to 3 days usually, 
-    # but the history endpoint handles scores differently.
-    # Actually, The Odds API 'scores' endpoint allows 'daysFrom' up to 3.
-    # To get older scores, you often just query the current season's 
-    # completed events if supported, or use a separate free API for scores 
-    # (like ESPN or statsapi) since purely historical scores are static.
-    
-    # For now, just ensure you are running the daily ingest going forward.
-    pass
+    # Logic placeholder - in production this would fetch scores from API
+    click.echo("Backfill results command is a placeholder in this version.")
+    session.close()
 
 if __name__ == '__main__':
     cli()

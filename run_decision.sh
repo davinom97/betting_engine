@@ -3,38 +3,46 @@
 # run_decision.sh
 # Runs the daily decision engine and appends output to logs/decision.log
 
+
 set -euo pipefail
 
-cd "$(dirname "$0")"
+# Set ROOT_DIR to the directory of this script
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+cd "$ROOT_DIR"
 
-mkdir -p logs
+mkdir -p "$ROOT_DIR/logs"
 
-# Activate virtualenv (support venv or .venv, Windows-style Scripts/activate for Git Bash)
-if [ -f "venv/bin/activate" ]; then
-    # unix-style venv
-    # shellcheck source=/dev/null
-    source "venv/bin/activate"
-elif [ -f ".venv/bin/activate" ]; then
-    # unix-style .venv
-    # shellcheck source=/dev/null
-    source ".venv/bin/activate"
-elif [ -f "venv/Scripts/activate" ]; then
-    # git-bash / msys style on Windows
-    # shellcheck source=/dev/null
-    source "venv/Scripts/activate"
-elif [ -f ".venv/Scripts/activate" ]; then
-    # git-bash / msys style on Windows
-    # shellcheck source=/dev/null
-    source ".venv/Scripts/activate"
+IS_WSL=false
+if [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
+    IS_WSL=true
 fi
+
+if [ "$IS_WSL" = true ] && [[ "$ROOT_DIR" == /mnt/* ]]; then
+    REPO_NAME="$(basename "$ROOT_DIR")"
+    VENV_DIR="$HOME/.cache/${REPO_NAME}_venv"
+else
+    VENV_DIR="$ROOT_DIR/venv"
+fi
+
+if [ -x "$VENV_DIR/bin/python" ]; then
+    PYTHON_CMD="$VENV_DIR/bin/python"
+elif [ -x "$VENV_DIR/Scripts/python.exe" ]; then
+    PYTHON_CMD="$VENV_DIR/Scripts/python.exe"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON_CMD="python"
+else
+    PYTHON_CMD="python3"
+fi
+
 
 export PYTHONPATH="${PYTHONPATH:-}:$ROOT_DIR"
 
-LOGFILE=logs/decision.log
+LOGFILE="$ROOT_DIR/logs/decision.log"
 echo "[$(date)] 🏆 Running Daily Decision Engine..." | tee -a "$LOGFILE"
+echo "[$(date)] Using python: $PYTHON_CMD" | tee -a "$LOGFILE"
 
-# Run the main orchestrator; use -u to flush output timely
-python -u main.py >> "$LOGFILE" 2>&1 || {
+# Run the main orchestrator using the explicit python
+"$PYTHON_CMD" -u main.py >> "$LOGFILE" 2>&1 || {
     echo "[$(date)] ❌ Decision Cycle FAILED" | tee -a "$LOGFILE"
     exit 1
 }

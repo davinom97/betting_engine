@@ -4,35 +4,50 @@
 # Backfill historical data for various sports. Usage: ./run_backfill_utility.sh [mode]
 # Modes: tierA | tierB | tierC | all | sport:<sport_key>
 
+
 set -euo pipefail
 
-cd "$(dirname "$0")"
+# Set ROOT_DIR to the directory of this script
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+cd "$ROOT_DIR"
 
-mkdir -p logs data
+mkdir -p "$ROOT_DIR/logs" "$ROOT_DIR/data"
 
-# Activate virtualenv (cross-platform)
-if [ -f "venv/bin/activate" ]; then
-	# shellcheck source=/dev/null
-	source "venv/bin/activate"
-elif [ -f ".venv/bin/activate" ]; then
-	# shellcheck source=/dev/null
-	source ".venv/bin/activate"
-elif [ -f "venv/Scripts/activate" ]; then
-	# Git Bash on Windows
-	# shellcheck source=/dev/null
-	source "venv/Scripts/activate"
+
+IS_WSL=false
+if [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
+	IS_WSL=true
+fi
+
+if [ "$IS_WSL" = true ] && [[ "$ROOT_DIR" == /mnt/* ]]; then
+	REPO_NAME="$(basename "$ROOT_DIR")"
+	VENV_DIR="$HOME/.cache/${REPO_NAME}_venv"
+else
+	VENV_DIR="$ROOT_DIR/venv"
+fi
+
+if [ -x "$VENV_DIR/bin/python" ]; then
+	PYTHON_CMD="$VENV_DIR/bin/python"
+elif [ -x "$VENV_DIR/Scripts/python.exe" ]; then
+	PYTHON_CMD="$VENV_DIR/Scripts/python.exe"
+elif command -v python >/dev/null 2>&1; then
+	PYTHON_CMD="python"
+else
+	PYTHON_CMD="python3"
 fi
 
 export PYTHONPATH="${PYTHONPATH:-}:$PWD"
 
-LOGFILE=logs/backfill.log
+LOGFILE="$ROOT_DIR/logs/backfill.log"
 echo "[$(date)] ▶ Starting History Backfill..." | tee -a "$LOGFILE"
 echo "    (This may take a while; API rate limits apply)" | tee -a "$LOGFILE"
 
+echo "[$(date)] Using python: $PYTHON_CMD" | tee -a "$LOGFILE"
+
 # Ensure required packages are installed (best-effort)
-if ! python -c "import click,requests" >/dev/null 2>&1; then
+if ! "$PYTHON_CMD" -c "import click,requests" >/dev/null 2>&1; then
 	echo "Installing runtime requirements into venv..." | tee -a "$LOGFILE"
-	python -m pip install -r requirements.txt >>"$LOGFILE" 2>&1 || true
+	"$PYTHON_CMD" -m pip install -r requirements.txt >>"$LOGFILE" 2>&1 || true
 fi
 
 MODE=${1:-tierA}
@@ -40,11 +55,11 @@ MODE=${1:-tierA}
 run_cmd() {
 	echo "[$(date)] ▶ $*" | tee -a "$LOGFILE"
 	# Run the python backfill command
-	if python -m src.backfill "$@" 2>&1 | tee -a "$LOGFILE"; then
+	if "$PYTHON_CMD" -m src.backfill "$@" 2>&1 | tee -a "$LOGFILE"; then
 		return 0
 	else
 		local rc=${PIPESTATUS[0]:-${?}}
-		echo "[$(date)] ❌ Command failed: python -m src.backfill $* (rc=$rc)" | tee -a "$LOGFILE"
+		echo "[$(date)] ❌ Command failed: $PYTHON_CMD -m src.backfill $* (rc=$rc)" | tee -a "$LOGFILE"
 		return $rc
 	fi
 }
